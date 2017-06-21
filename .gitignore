@@ -1,0 +1,5 @@
+*.local
+logs/*
+*.pyc
+*/checkpoints/*
+*.ipynb
