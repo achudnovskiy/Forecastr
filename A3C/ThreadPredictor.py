@@ -28,7 +28,8 @@ from threading import Thread
 
 import numpy as np
 
-from Config import Config
+from .Config import Config
+from Common.Config import Config as GlobalConfig
 
 
 class ThreadPredictor(Thread):
@@ -46,7 +47,7 @@ class ThreadPredictor(Thread):
         #     (Config.PREDICTION_BATCH_SIZE, Config.IMAGE_HEIGHT, Config.IMAGE_WIDTH, Config.STACKED_FRAMES),
         #     dtype=np.float32)
         states = np.zeros(
-            (Config.PREDICTION_BATCH_SIZE, Config.SLICE_SIZE * Config.SLICE_WIDTH + 1 , 1 ,1),
+            (Config.PREDICTION_BATCH_SIZE, GlobalConfig.SLICE_SIZE * GlobalConfig.SLICE_WIDTH, 1, 1),
             dtype=np.float32)
         while not self.exit_flag:
             ids[0], states[0] = self.server.prediction_q.get()

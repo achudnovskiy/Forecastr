@@ -24,38 +24,33 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# check python version; warn if not Python3
-import sys
-import warnings
-from Config import Config
-from Server import Server
-# import gym
+from threading import Thread
+import numpy as np
 
-if sys.version_info < (3,0):
-    warnings.warn("Optimized for Python3. Performance may suffer under Python2.", Warning)
+from .Config import Config
+from Common.Config import Config as GlobalConfig
 
+class ThreadTrainer(Thread):
+    def __init__(self, server, id):
+        super(ThreadTrainer, self).__init__()
+        self.setDaemon(True)
 
+        self.id = id
+        self.server = server
+        self.exit_flag = False
 
-# Parse arguments
-for i in range(1, len(sys.argv)):
-    # Config arguments should be in format of Config=Value
-    # For setting booleans to False use Config=
-    x, y = sys.argv[i].split('=')
-    setattr(Config, x, type(getattr(Config, x))(y))
-
-# Adjust configs for Play mode
-if Config.PLAY_MODE:
-    print("play mode")
-    Config.AGENTS = 1
-    Config.PREDICTORS = 1
-    Config.TRAINERS = 1
-    Config.DYNAMIC_SETTINGS = False
-
-    Config.LOAD_CHECKPOINT = True
-    Config.TRAIN_MODELS = False
-    Config.SAVE_MODELS = False
-
-# gym.undo_logger_setup()
-
-# Start main program
-Server().main()
+    def run(self):
+        while not self.exit_flag:
+            batch_size = 0
+            while batch_size <= Config.TRAINING_MIN_BATCH_SIZE:
+                x_, r_, a_ = self.server.training_q.get()
+                if batch_size == 0:
+                    x__ = x_; r__ = r_; a__ = a_
+                else:
+                    x__ = np.concatenate((x__, x_))
+                    r__ = np.concatenate((r__, r_))
+                    a__ = np.concatenate((a__, a_))
+                batch_size += x_.shape[0]
+            
+            if GlobalConfig.FORECAST_MODE:
+                self.server.train_model(x__, r__, a__, self.id)

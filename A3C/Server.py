@@ -28,14 +28,15 @@ from multiprocessing import Queue
 
 import time
 
-from Config import Config
-from Environment import Environment
-from NetworkVP import NetworkVP
-from ProcessAgent import ProcessAgent
-from ProcessStats import ProcessStats
-from ThreadDynamicAdjustment import ThreadDynamicAdjustment
-from ThreadPredictor import ThreadPredictor
-from ThreadTrainer import ThreadTrainer
+# from A3C import Config, NetworkVP, ProcessAgent, ProcessStats, ThreadDynamicAdjustment, ThreadPredictor, ThreadTrainer
+from Common.Config import Config as GlobalConfig
+from .Config import Config
+from .NetworkVP import NetworkVP
+from .ProcessAgent import ProcessAgent
+from .ProcessStats import ProcessStats
+from .ThreadDynamicAdjustment import ThreadDynamicAdjustment
+from .ThreadPredictor import ThreadPredictor
+from .ThreadTrainer import ThreadTrainer
 
 
 class Server:
@@ -46,8 +47,8 @@ class Server:
         self.prediction_q = Queue(maxsize=Config.MAX_QUEUE_SIZE)
 
         self.model = NetworkVP(Config.DEVICE, Config.NETWORK_NAME, Config.ACTIONS)
-        if Config.LOAD_CHECKPOINT:
-            self.stats.episode_count.value = self.model.load()
+        # if Config.LOAD_CHECKPOINT:
+        self.stats.episode_count.value = self.model.load()
 
         self.training_step = 0
         self.frame_counter = 0
@@ -103,7 +104,7 @@ class Server:
         self.stats.start()
         self.dynamic_adjustment.start()
 
-        if Config.PLAY_MODE:
+        if GlobalConfig.FORECAST_MODE:
             for trainer in self.trainers:
                 trainer.enabled = False
 
@@ -117,7 +118,7 @@ class Server:
             self.model.beta = Config.BETA_START + beta_multiplier * step
 
             # Saving is async - even if we start saving at a given episode, we may save the model at a later episode
-            if Config.SAVE_MODELS and self.stats.should_save_model.value > 0:
+            if GlobalConfig.FORECAST_MODE == False and self.stats.should_save_model.value > 0:
                 self.save_model()
                 self.stats.should_save_model.value = 0
 

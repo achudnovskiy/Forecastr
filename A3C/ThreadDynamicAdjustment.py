@@ -29,8 +29,8 @@ from threading import Thread
 import numpy as np
 import time
 
-from Config import Config
-
+from .Config import Config
+from Common.Config import Config as GlobalConfig
 
 class ThreadDynamicAdjustment(Thread):
     def __init__(self, server):
@@ -40,9 +40,16 @@ class ThreadDynamicAdjustment(Thread):
         self.server = server
         self.enabled = Config.DYNAMIC_SETTINGS
 
-        self.trainer_count = Config.TRAINERS
-        self.predictor_count = Config.PREDICTORS
-        self.agent_count = Config.AGENTS
+        if GlobalConfig.FORECAST_MODE:
+            self.trainer_count = 1
+            self.predictor_count = 1
+            self.agent_count = 1
+            self.enabled = False
+        else:
+            self.trainer_count = Config.TRAINERS
+            self.predictor_count = Config.PREDICTORS
+            self.agent_count = Config.AGENTS
+            self.enabled = True
 
         self.temporal_training_count = 0
         self.exit_flag = False

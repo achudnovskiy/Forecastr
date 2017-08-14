@@ -24,37 +24,27 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from Common.Config import Config as GlobalConfig
+
 class Config:
 
-    #########################################################################
-    # Game configuration
-
-    # Name of the game, with version (e.g. PongDeterministic-v0)
-    ATARI_GAME = 'PongDeterministic-v0'
-
-    # Enable to see the trained agent in action
-    PLAY_MODE = False
-    # Enable to train
-    TRAIN_MODELS = True
-    # Load old models. Throws if the model doesn't exist
-    LOAD_CHECKPOINT = False
-    # If 0, the latest checkpoint is loaded
-    LOAD_EPISODE = 0 
-
+  
     #########################################################################
     # Number of agents, predictors, trainers and other system settings
     
     # If the dynamic configuration is on, these are the initial values.
     # Number of Agents
-    # AGENTS = 32 
-    AGENTS = 12
+    AGENTS = 1
     # Number of Predictors
-    PREDICTORS = 2
+    PREDICTORS = 1
     # Number of Trainers
-    TRAINERS = 2
+    TRAINERS = 1
 
     # Device
-    DEVICE = 'cpu:0'
+    if GlobalConfig.USE_CUDA:
+        Device = 'gpu:0'
+    else:
+        DEVICE = 'cpu:0'
 
     # Enable the dynamic adjustment (+ waiting time to start it)
     DYNAMIC_SETTINGS = True
@@ -67,28 +57,11 @@ class Config:
     # Discount factor
     DISCOUNT = 0.99
     
-    # Tmax
-    TIME_MAX = 5
-    
-    # Reward Clipping
-    REWARD_MIN = -1
-    REWARD_MAX = 1
-
     # Max size of the queue
     MAX_QUEUE_SIZE = 100
     PREDICTION_BATCH_SIZE = 128
 
-    STOCK_START_DATE = '2010-01-01'
-    STOCK_END_DATE = '2017-03-01'
-
-    # Input of the DNN
-    SLICE_SIZE = 30
-    SLICE_WIDTH = 5
-    # STACKED_FRAMES = 4
-    # IMAGE_WIDTH = 84
-    # IMAGE_HEIGHT = 84
-
-    ACTIONS = 3
+    ACTIONS = GlobalConfig.ACTIONS
 
     # Total number of episodes and annealing frequency
     EPISODES = 400000
@@ -128,11 +101,9 @@ class Config:
 
     # Enable to save models every SAVE_FREQUENCY episodes
     SAVE_MODELS = True
-    # Save every SAVE_FREQUENCY episodes
-    SAVE_FREQUENCY = 10
     
     # Print stats every PRINT_STATS_FREQUENCY episodes
-    PRINT_STATS_FREQUENCY = 1
+    PRINT_STATS_FREQUENCY = 100000
     # The window to average stats
     STAT_ROLLING_MEAN_WINDOW = 1000
 

@@ -1,27 +1,9 @@
 from pandas_datareader import data as dreader
 import numpy as np
 from sklearn import preprocessing
-import cPickle as pickle
 import progressbar
 import time
 
-%matplotlib inline
-import matplotlib.pyplot as plt
-
-
-def pulldata(start_date, end_date):
-    stock_data = dreader.DataReader('INTC','google',start_date,end_date)
-    return stock_data, stock_data.shape[0], stock_data.shape[1]
-
-
-def prepro(i,all_data):
-    #get stocks data from 
-    start_index = i - period_length
-    end_index =  i
-    data_to_process = all_data.values[start_index:end_index]
-    scaled_data = preprocessing.MinMaxScaler().fit_transform(data_to_process)
-    flatten_data = scaled_data.flatten().T
-    return flatten_data
 
 def softmax(x):
     probs = np.exp(x - np.max(x, axis=1, keepdims=True))
@@ -38,21 +20,6 @@ def policy_forward(x,model):
     p = softmax(logp)
     
     return p, h # return probability of taking action 2, and hidden state
-
-def policy_backward(eph, epdlogp, model):
-    """ backward pass. (eph is array of intermediate hidden states) """
-    dW2 = eph.T.dot(epdlogp)  
-    dh = epdlogp.dot(model['W2'].T)
-    dh[eph <= 0] = 0 # backpro prelu
-    
-    dW1 = epx.T.dot(dh) 
-
-    return {'W1':dW1, 'W2':dW2}
-
-def restore_model(file_name):
-    fileObject = open(file_name,'r')
-    return pickle.load(fileObject)
-
 
 start_period = '2010-01-01'
 end_period = '2017-03-01'
@@ -75,7 +42,6 @@ model = pickle.load(f)
 
 running_reward = None
 episode_number = 0
-episode_count = 100
 positions = []
 
 progress_bar = progressbar.ProgressBar(maxval=row_count, widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])

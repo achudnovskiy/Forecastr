@@ -28,8 +28,8 @@ import os
 import re
 import numpy as np
 import tensorflow as tf
-
-from Config import Config
+from Common.Config import Config as GlobalConfig
+from A3C.Config import Config
 
 
 class NetworkVP:
@@ -41,7 +41,7 @@ class NetworkVP:
         # self.img_width = Config.IMAGE_WIDTH
         # self.img_height = Config.IMAGE_HEIGHT
         # self.img_channels = Config.STACKED_FRAMES
-        self.data_size = Config.SLICE_SIZE * Config.SLICE_WIDTH + 1
+        self.data_size = GlobalConfig.SLICE_SIZE * GlobalConfig.SLICE_WIDTH
         self.learning_rate = Config.LEARNING_RATE_START
         self.beta = Config.BETA_START
         self.log_epsilon = Config.LOG_EPSILON
@@ -60,9 +60,9 @@ class NetworkVP:
                 self.sess.run(tf.global_variables_initializer())
 
                 if Config.TENSORBOARD: self._create_tensor_board()
-                if Config.LOAD_CHECKPOINT or Config.SAVE_MODELS:
-                    vars = tf.global_variables()
-                    self.saver = tf.train.Saver({var.name: var for var in vars}, max_to_keep=0)
+                # if Config.LOAD_CHECKPOINT or Config.SAVE_MODELS:
+                vars = tf.global_variables()
+                self.saver = tf.train.Saver({var.name: var for var in vars}, max_to_keep=0)
                 
 
     def _create_graph(self):
@@ -259,10 +259,11 @@ class NetworkVP:
 
     def load(self):
         filename = tf.train.latest_checkpoint(os.path.dirname(self._checkpoint_filename(episode=0)))
-        if Config.LOAD_EPISODE > 0:
-            filename = self._checkpoint_filename(Config.LOAD_EPISODE)
-        self.saver.restore(self.sess, filename)
-        return self._get_episode_from_filename(filename)
+        if filename == None:
+            return 0
+        else:
+            self.saver.restore(self.sess, filename)
+            return self._get_episode_from_filename(filename)
        
     def get_variables_names(self):
         return [var.name for var in self.graph.get_collection('trainable_variables')]
