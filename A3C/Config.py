@@ -34,11 +34,11 @@ class Config:
     
     # If the dynamic configuration is on, these are the initial values.
     # Number of Agents
-    AGENTS = 1
+    AGENTS = 32
     # Number of Predictors
-    PREDICTORS = 1
+    PREDICTORS = 2 
     # Number of Trainers
-    TRAINERS = 1
+    TRAINERS = 2
 
     # Device
     if GlobalConfig.USE_CUDA:
@@ -103,7 +103,7 @@ class Config:
     SAVE_MODELS = True
     
     # Print stats every PRINT_STATS_FREQUENCY episodes
-    PRINT_STATS_FREQUENCY = 100000
+    PRINT_STATS_FREQUENCY = 1
     # The window to average stats
     STAT_ROLLING_MEAN_WINDOW = 1000
 

@@ -26,12 +26,15 @@ class Market:
         stockData, done = self.nextBatch()
         return self.preprocess(stockData)
 
+    def currentBatchLength(self):
+        return self.currentStock.shape[0]
+
     def nextBatch(self):    
         start_index = self.iterator - Config.SLICE_SIZE
         end_index = self.iterator
         batch = self.currentStock.iloc[start_index:end_index]
         self.iterator = self.iterator + 1
-        done = self.iterator >= self.currentStock.shape[0]
+        done = self.iterator >= self.currentBatchLength()
         return batch, done
 
     def preprocess(self,stockData):
@@ -45,15 +48,7 @@ class Market:
         self.totalReward = self.totalReward + reward
         # add current position to the observation
         observation = self.preprocess(stockData)
-        # if done and Config.FORECAST_MODE:
-            # FileManager.saveTrades(self.currentStock, self.trader.exportHistory())
         return observation, reward, done, None
     
     def exportDataTradingData(self):
         return  self.currentStock, self.trader.exportHistory()
-
-    # def exportHistory(self,saveToFile):
-    #     traderHistory = self.trader.exportHistory()
-    #     if saveToFile:
-    #         FileManager.saveTrades(self.currentStock, traderHistory)
-    #     return traderHistory

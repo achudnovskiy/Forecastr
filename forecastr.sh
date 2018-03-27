@@ -22,7 +22,7 @@ case $methodType in
     pg) methodName="pg";;
     a3c) methodName="a3c";;
     *)
-        echo $"Usage: $0 -t {pg, a3c}"
+        echo $"Usage: $0 -t {pg, a3c} -m {train, forecast}"
         exit 1
 esac
 
@@ -30,7 +30,7 @@ case $runMode in
     train) script="train.py";;
     forecast) script="forecast.py";;
     *)
-        echo $"Usage: $0 -m {train, forecast}"
+        echo $"Usage: $0 -t {pg, a3c} -m {train, forecast}"
         exit 1
 esac
 

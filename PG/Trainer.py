@@ -83,13 +83,14 @@ def discount_rewards(r, gamma):
     return discounted_r
 
 
-def train():
+def run():
 
     try:
         model = FileManager.restoreDataFromFile("PG")
     except:
         model = initModel(GlobalConfig.SLICE_SIZE * GlobalConfig.SLICE_WIDTH, Config.HIDDEN_LAYER_COUNT,  GlobalConfig.ACTIONS)
 
+    episode_count = GlobalConfig.EPISODE_COUNT
     market = Market()
     grad_buffer = { k : np.zeros_like(v) for k,v in model.items() } # update buffers that add up gradients over a batch
     rmsprop_cache = { k : np.zeros_like(v) for k, v in model.items() } # rmsprop memory
@@ -98,11 +99,14 @@ def train():
     episode_number = 0
 
     t = time.time()
-    progress_bar = progressbar.ProgressBar(maxval=GlobalConfig.EPISODE_COUNT - 1, widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
-    progress_bar.start()
-    while episode_number < GlobalConfig.EPISODE_COUNT:
+    
+    progress_bar = progressbar.ProgressBar(maxval=episode_count - 1, widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
 
-        progress_bar.update(episode_number)
+    progress_bar.start()
+    while episode_number < episode_count:
+
+        if GlobalConfig.FORECAST_MODE == False:
+            progress_bar.update(episode_number)
         reward_sum = 0
         done = False
         observation = market.reset()
@@ -157,13 +161,9 @@ def train():
                 model[k] += Config.LEARNING_RATE * g / (np.sqrt(rmsprop_cache[k]) + 1e-5)
                 grad_buffer[k] = np.zeros_like(v) # reset batch gradient buffer
         
-        
         if episode_number % GlobalConfig.CHECKPOINT_MARK == 0:
             FileManager.saveModel('PG', model)
 
-        # boring book-keeping
-        # running_reward = reward_sum if running_reward is None else running_reward * 0.99 + reward_sum * 0.01
-        
         episode_number += 1
 
     progress_bar.finish()

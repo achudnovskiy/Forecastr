@@ -16,7 +16,8 @@ def saveDataToFile(fileName, data):
     pickle.dump(data, fileObject)
     fileObject.close()
 
-def restoreDataFromFile(fileName):
+def restoreDataFromFile(modelType):
+    fileName = modelFiles[modelType]
     fileObject = open(fileName, 'rb')
     try:
         return pickle.load(fileObject)

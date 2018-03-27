@@ -1,93 +1,105 @@
-from pandas_datareader import data as dreader
+#!/usr/bin/env python3
+
+import sys
 import numpy as np
 from sklearn import preprocessing
 import progressbar
 import time
+from Common.Config import Config as GlobalConfig
+import Common.FileManager as FileManager
+from Common.Market import Market
+from .Config import Config
 
+if GlobalConfig.USE_CUDA:
+    try:
+        import pycuda.autoinit
+        import pycuda.gpuarray as gpuarray
+        import skcuda.linalg as linalg
+        import skcuda.misc as misc
+        useCuda = True
+        linalg.init()
+    except ImportError:
+        useCuda = False
+else:
+    useCuda = False
+
+def initModel(D, H, A):
+    model = {}
+    model['W1'] = np.asarray(np.random.randn(D, H) / np.sqrt(D), np.float64) # "Xavier" initialization
+    model['W2'] = np.asarray(np.random.randn(H, A) / np.sqrt(H), np.float64)
+
+    return model
 
 def softmax(x):
     probs = np.exp(x - np.max(x, axis=1, keepdims=True))
     probs /= np.sum(probs, axis=1, keepdims=True)
     return probs
 
-def policy_forward(x,model):
-    if(len(x.shape)==1):
-        x = x[np.newaxis,...]
-    
-    h = x.dot(model['W1'])
-    h[h<0] = 0 # ReLU nonlinearity
-    logp = h.dot(model['W2'])
-    p = softmax(logp)
-    
-    return p, h # return probability of taking action 2, and hidden state
+def policy_forward(x, model):
+    if len(x.shape) == 1:
+        x = x[np.newaxis, ...]
 
-start_period = '2010-01-01'
-end_period = '2017-03-01'
-model_file_name = 'top_secret_model'
-
-dt,row_count,col_count = pulldata(start_period,end_period)
-
-period_length = 30 # number of days of data in the buffer
-HIDDEN_LAYER_COUNT = 200 # number of hidden layer neurons
-DIMENSION = period_length * col_count + 1
-learning_rate = 1e-4
-batch_size = 10 # every how many episodes to do a param update?
-gamma = 0.99 # discount factor for reward
-decay_rate = 0.99 # decay factor for RMSProp leaky sum of grad^2
-ACTIONS = 3   # actions: 0 - do nothing, 1 - buy, 2 - sell
-
-
-f = open(model_file_name, "rb")
-model = pickle.load(f)
-
-running_reward = None
-episode_number = 0
-positions = []
-
-progress_bar = progressbar.ProgressBar(maxval=row_count, widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
-progress_bar.start()
-
-    
-cur_position = 0
-reward_sum = np.float64(0)
-i = period_length + 1
-
-while i < row_count:
-    reward = np.float64(0)
-    x = prepro(i,dt)
-    cur_price = dt['Adj Close'][i]
-    if cur_position != 0:
-        x = np.append(x,np.float64(1))
+    if useCuda:
+        h = cuda_multiply(x.copy(), model['W1'])
+        h[h<0] = 0 # ReLU nonlinearity
+        logp = cuda_multiply(h, model['W2'])
     else:
-        x = np.append(x,np.float64(0))
-    # forward the policy network and sample an action from the returned probability
-    aprob, h = policy_forward(x,model)
-    # roll the dice, in the softmax loss
-    u = np.random.uniform()
-    aprob_cum = np.cumsum(aprob)
-    action = np.where(u <= aprob_cum)[0][0]
+        h = x.dot(model['W1'])
+        h[h<0] = 0 # ReLU nonlinearity
+        logp = h.dot(model['W2'])
 
-    # step the environment and get new measurements
-    if cur_position == 0:
-        if action == 1:
-            positions.append({'ts':i,'ps':'open'})
-            cur_position = cur_price
-    elif action == 2:
-        positions.append({'ts':i,'ps':'close'})
-        reward = cur_price - cur_position
-        cur_position = 0
+    p = softmax(logp)
+
+    return p, h
+
+def cuda_multiply(mtx1, mtx2, trans1='N', trans2='N'):
+    mtx1_gpu = gpuarray.to_gpu(mtx1)
+    mtx2_gpu = gpuarray.to_gpu(mtx2)
+    return linalg.dot(mtx1_gpu, mtx2_gpu, transa=trans1, transb=trans2).get()
+
+
+def run():
+
+    try:
+        model = FileManager.restoreDataFromFile("PG")
+    except:
+        if GlobalConfig.FORECAST_MODE:
+            print("Couldn't find the model")
+            return
+
+    market = Market()
+    running_reward = None
+    episode_number = 0
+
+    t = time.time()
     
-    reward_sum += reward
-    i = i + 1
-    progress_bar.update(i)
 
-progress_bar.finish()
-print ' reward: %f' % reward_sum
+    reward_sum = 0
+    done = False
+    observation = market.reset()
+    prev_observation = None
+
+    progress_bar = progressbar.ProgressBar(maxval=market.currentBatchLength() - 1, widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
+    progress_bar.start()
+
+    while done == False:
+        progress_bar.update(market.iterator)
+        observation_change = observation - prev_observation if prev_observation is not None else np.zeros(GlobalConfig.SLICE_SIZE * GlobalConfig.SLICE_WIDTH)
+        prev_observation = observation 
+        # forward the policy network and sample an action from the returned probability
+        action_probability, hidden_state = policy_forward(observation_change,model)
+        # roll the dice, in the softmax loss
+        u = np.random.uniform()
+        action_probability_cumulative = np.cumsum(action_probability)
+        action = np.where(u <= action_probability_cumulative)[0][0]
+
+        observation, reward, done, info = market.takeAction(action)
+        reward_sum += reward
 
 
-pl_dt = dt['Close']
-ax = dt['Close'].plot(figsize=(20,10))
-for pos in positions:
-    act_ind = pos['ts']
-    ax.annotate(pos['ps'],(dt.index[act_ind], dt['Close'][act_ind]), textcoords='offset points',xytext=(15, 15),arrowprops=dict(arrowstyle='-|>'))
-df2.plot(ax=ax)
+
+    progress_bar.finish()
+    # print ('running mean: %f' % running_reward)
+    print ('Finished in', time.time()-t, 'seconds ')
+    stock, trades = market.exportDataTradingData()
+    FileManager.saveTrades(stock,trades)
